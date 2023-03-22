@@ -1,0 +1,15 @@
+{
+    "name": "io.naviar.vpsservice",
+    "displayName": "VPS Service",
+    "version": "0.3.2",
+    "unity": "2021.1",
+    "description": "Visual Positioning System SDK for Unity apps.",
+    "license": "MIT License",
+    "licensesUrl": "https://github.com/naviar-io/naviar-sdk-unity/blob/main/LICENSE",
+    "dependencies": {
+        "com.unity.xr.arfoundation": "4.0.2",
+        "com.unity.xr.arcore": "4.0.3",
+        "com.unity.xr.arkit": "4.0.2",
+    	"com.unity.nuget.newtonsoft-json": "2.0.2"
+    }
+}
