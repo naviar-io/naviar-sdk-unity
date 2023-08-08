@@ -50,7 +50,7 @@ public static class CropScale
                 newColors[offset + j] = ColorLerpUnclamped(ColorLerpUnclamped(sourceColors[colorY1 + xFloor], sourceColors[colorY1 + xFloor + 1], xLerp), ColorLerpUnclamped(sourceColors[colorY2 + xFloor], sourceColors[colorY2 + xFloor + 1], xLerp), i * ratioY - yFloor);
             }
         }
-        texture.Resize(width, height, format, false);
+        texture.Reinitialize(width, height, format, false);
         texture.SetPixels(newColors);
         texture.Apply();
         sourceColors = null;

@@ -12,18 +12,16 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
-using System;
-using System.Runtime.InteropServices;
 
+using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
-
 using TfLiteInterpreter = System.IntPtr;
 using TfLiteInterpreterOptions = System.IntPtr;
 using TfLiteModel = System.IntPtr;
 using TfLiteTensor = System.IntPtr;
-using TfLiteDelegate = System.IntPtr;
-using UnityEngine;
 
 namespace TensorFlowLite
 {
@@ -51,36 +49,58 @@ namespace TensorFlowLite
 
         private TfLiteModel model = IntPtr.Zero;
         private TfLiteInterpreter interpreter = IntPtr.Zero;
-        private InterpreterOptions options = null;
+        private readonly InterpreterOptions options = null;
+        private readonly GCHandle modelDataHandle;
+        private readonly Dictionary<int, GCHandle> inputDataHandles = new Dictionary<int, GCHandle>();
+        private readonly Dictionary<int, GCHandle> outputDataHandles = new Dictionary<int, GCHandle>();
+
+
+        internal TfLiteInterpreter InterpreterPointer => interpreter;
 
         public Interpreter(byte[] modelData) : this(modelData, null) { }
 
         public Interpreter(byte[] modelData, InterpreterOptions options)
         {
-            GCHandle modelDataHandle = GCHandle.Alloc(modelData, GCHandleType.Pinned);
+            modelDataHandle = GCHandle.Alloc(modelData, GCHandleType.Pinned);
             IntPtr modelDataPtr = modelDataHandle.AddrOfPinnedObject();
             model = TfLiteModelCreate(modelDataPtr, modelData.Length);
             if (model == IntPtr.Zero) throw new Exception("Failed to create TensorFlowLite Model");
 
-            this.options = options;
+            this.options = options ?? new InterpreterOptions();
 
             interpreter = TfLiteInterpreterCreate(model, options.nativePtr);
             if (interpreter == IntPtr.Zero) throw new Exception("Failed to create TensorFlowLite Interpreter");
         }
 
 
-        public void Dispose()
+        public virtual void Dispose()
         {
-            if (interpreter != IntPtr.Zero) TfLiteInterpreterDelete(interpreter);
-            interpreter = IntPtr.Zero;
+            if (interpreter != IntPtr.Zero)
+            {
+                TfLiteInterpreterDelete(interpreter);
+                interpreter = IntPtr.Zero;
+            }
 
-            if (model != IntPtr.Zero) TfLiteModelDelete(model);
-            model = IntPtr.Zero;
+            if (model != IntPtr.Zero)
+            {
+                TfLiteModelDelete(model);
+                model = IntPtr.Zero;
+            }
 
-            if (options != null) options.Dispose();
+            options?.Dispose();
+
+            foreach (var handle in inputDataHandles.Values)
+            {
+                handle.Free();
+            }
+            foreach (var handle in outputDataHandles.Values)
+            {
+                handle.Free();
+            }
+            modelDataHandle.Free();
         }
 
-        public void Invoke()
+        public virtual void Invoke()
         {
             ThrowIfError(TfLiteInterpreterInvoke(interpreter));
         }
@@ -92,11 +112,14 @@ namespace TensorFlowLite
 
         public void SetInputTensorData(int inputTensorIndex, Array inputTensorData)
         {
-            GCHandle tensorDataHandle = GCHandle.Alloc(inputTensorData, GCHandleType.Pinned);
+            if (!inputDataHandles.TryGetValue(inputTensorIndex, out GCHandle tensorDataHandle))
+            {
+                tensorDataHandle = GCHandle.Alloc(inputTensorData, GCHandleType.Pinned);
+                inputDataHandles.Add(inputTensorIndex, tensorDataHandle);
+            }
             IntPtr tensorDataPtr = tensorDataHandle.AddrOfPinnedObject();
             TfLiteTensor tensor = TfLiteInterpreterGetInputTensor(interpreter, inputTensorIndex);
-            ThrowIfError(TfLiteTensorCopyFromBuffer(
-                tensor, tensorDataPtr, Buffer.ByteLength(inputTensorData)));
+            ThrowIfError(TfLiteTensorCopyFromBuffer(tensor, tensorDataPtr, Buffer.ByteLength(inputTensorData)));
         }
 
         public unsafe void SetInputTensorData<T>(int inputTensorIndex, NativeArray<T> inputTensorData) where T : struct
@@ -125,11 +148,14 @@ namespace TensorFlowLite
 
         public void GetOutputTensorData(int outputTensorIndex, Array outputTensorData)
         {
-            GCHandle tensorDataHandle = GCHandle.Alloc(outputTensorData, GCHandleType.Pinned);
+            if (!outputDataHandles.TryGetValue(outputTensorIndex, out GCHandle tensorDataHandle))
+            {
+                tensorDataHandle = GCHandle.Alloc(outputTensorData, GCHandleType.Pinned);
+                outputDataHandles.Add(outputTensorIndex, tensorDataHandle);
+            }
             IntPtr tensorDataPtr = tensorDataHandle.AddrOfPinnedObject();
             TfLiteTensor tensor = TfLiteInterpreterGetOutputTensor(interpreter, outputTensorIndex);
-            ThrowIfError(TfLiteTensorCopyToBuffer(
-                tensor, tensorDataPtr, Buffer.ByteLength(outputTensorData)));
+            ThrowIfError(TfLiteTensorCopyToBuffer(tensor, tensorDataPtr, Buffer.ByteLength(outputTensorData)));
         }
 
         public TensorInfo GetInputTensorInfo(int index)
@@ -159,7 +185,7 @@ namespace TensorFlowLite
             return Marshal.PtrToStringAnsi(TfLiteTensorName(tensor));
         }
 
-        private static TensorInfo GetTensorInfo(TfLiteTensor tensor)
+        protected static TensorInfo GetTensorInfo(TfLiteTensor tensor)
         {
             int[] dimensions = new int[TfLiteTensorNumDims(tensor)];
             for (int i = 0; i < dimensions.Length; i++)
@@ -175,18 +201,49 @@ namespace TensorFlowLite
             };
         }
 
-        private static void ThrowIfError(Status status)
+        protected TfLiteTensor GetInputTensor(int inputTensorIndex)
         {
-            if (status == Status.Error) throw new Exception("TensorFlowLite operation failed.");
-            if (status == Status.DelegateError) throw new Exception("TensorFlowLite delegage operation failed.");
+            return TfLiteInterpreterGetInputTensor(interpreter, inputTensorIndex);
+        }
+
+        protected TfLiteTensor GetOutputTensor(int outputTensorIndex)
+        {
+            return TfLiteInterpreterGetOutputTensor(interpreter, outputTensorIndex);
+        }
+
+        protected static void ThrowIfError(Status status)
+        {
+            switch (status)
+            {
+                case Status.Ok:
+                    return;
+                case Status.Error:
+                    throw new Exception("TensorFlowLite operation failed.");
+                case Status.DelegateError:
+                    throw new Exception("TensorFlowLite delegate operation failed.");
+                case Status.ApplicationError:
+                    throw new Exception("Applying TensorFlowLite delegate operation failed.");
+                case Status.DelegateDataNotFound:
+                    throw new Exception("Serialized delegate data not being found.");
+                case Status.DelegateDataWriteError:
+                    throw new Exception("Writing data to delegate failed.");
+                case Status.DelegateDataReadError:
+                    throw new Exception("Reading data from delegate failed.");
+                case Status.UnresolvedOps:
+                    throw new Exception("Ops not found.");
+                default:
+                    throw new Exception($"Unknown TensorFlowLite error: {status}");
+            }
         }
 
         #region Externs
 
 #if UNITY_IOS && !UNITY_EDITOR
-        private const string TensorFlowLibrary = "__Internal";
+        internal const string TensorFlowLibrary = "__Internal";
+#elif UNITY_ANDROID && !UNITY_EDITOR
+        internal const string TensorFlowLibrary = "libtensorflowlite_jni";
 #else
-        private const string TensorFlowLibrary = "libtensorflowlite_c";
+        internal const string TensorFlowLibrary = "libtensorflowlite_c";
 #endif
 
         // TfLiteStatus
@@ -194,7 +251,12 @@ namespace TensorFlowLite
         {
             Ok = 0,
             Error = 1,
-            DelegateError = 2
+            DelegateError = 2,
+            ApplicationError = 3,
+            DelegateDataNotFound = 4,
+            DelegateDataWriteError = 5,
+            DelegateDataReadError = 6,
+            UnresolvedOps = 7,
         }
 
         // TfLiteType
@@ -212,6 +274,12 @@ namespace TensorFlowLite
             Int8 = 9,
             Float16 = 10,
             Float64 = 11,
+            Complex128 = 12,
+            UInt64 = 13,
+            Resource = 14,
+            Variant = 15,
+            UInt32 = 16,
+            UInt16 = 17,
         }
 
         public struct QuantizationParams

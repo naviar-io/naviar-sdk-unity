@@ -5,9 +5,6 @@ using System.IO;
 using naviar.VPSService.JSONs;
 using UnityEngine;
 using UnityEngine.Networking;
-using UnityEngine.UI;
-using System.Net;
-using System.Net.Http;
 
 namespace naviar.VPSService
 {
@@ -170,7 +167,7 @@ namespace naviar.VPSService
         {
             using (UnityWebRequest www = UnityWebRequest.Post(uri, form))
             {
-                www.downloadHandler = (DownloadHandler)new DownloadHandlerBuffer();
+                www.downloadHandler = new DownloadHandlerBuffer();
 
                 www.timeout = timeout;
 
@@ -190,9 +187,19 @@ namespace naviar.VPSService
 
                 VPSLogger.LogFormat(LogLevel.DEBUG, "Request finished with code: {0}", www.responseCode);
 
-                string xRequestId = "x-request-id: " + www.GetResponseHeaders()["x-request-id"];
+                string xRequestId;
+                var responseHeader = www.GetResponseHeaders();
+                if (responseHeader == null)
+                    xRequestId = "Response header is null";
+                else
+                    xRequestId = "x-request-id: " + responseHeader["x-request-id"];
 
-                string response = www.downloadHandler.text;
+                string response;
+                var downloadHandler = www.downloadHandler;
+                if (downloadHandler == null)
+                    response = "Response download handler is null";
+                else
+                    response = downloadHandler.text;
 
                 if (www.responseCode == 200)
                     VPSLogger.LogFormat(LogLevel.DEBUG, "Request Finished Successfully!\n{0}\n{1}", xRequestId, response);

@@ -12,11 +12,8 @@ namespace naviar.VPSService
     /// <summary>
     /// Internal management VPS
     /// </summary>
-    public class VPSLocalisationAlgorithm
+    public class VPSLocalisationAlgorithm : ILocalisationAlgorithm
     {
-        private const float MaxAngleX = 30;
-        private const float MaxAngleZ = 30;
-
         private VPSLocalisationService localisationService;
         private ServiceProvider provider;
 
@@ -49,6 +46,7 @@ namespace naviar.VPSService
         int currentFailsCount = 0;
         bool isLocalization = true;
         bool isCorrectAngle = true;
+        bool isPaused = false;
 
         #region Metrics
 
@@ -84,14 +82,18 @@ namespace naviar.VPSService
 
             locationState = new LocationState();
 
-            localisationService.StartCoroutine(LocalisationRoutine());
-
             neuronTime = 0;
-
-            OnErrorHappend += (error) => ResetIfFails(failsToReset);
 
             currentFailsCount = 0;
             isLocalization = true;
+            isPaused = false;
+
+            OnErrorHappend += (error) => ResetIfFails(failsToReset);
+        }
+
+        public void Run()
+        {
+            localisationService.StartCoroutine(LocalisationRoutine());
         }
 
         public void Stop()
@@ -99,6 +101,16 @@ namespace naviar.VPSService
             provider.GetMobileVPS()?.StopTask();
             localisationService.StopAllCoroutines();
             ARFoundationCamera.semaphore.Free();
+        }
+
+        public void Pause()
+        {
+            isPaused = true;
+        }
+
+        public void Resume()
+        {
+            isPaused = false;
         }
 
         /// <summary>
@@ -114,8 +126,21 @@ namespace naviar.VPSService
         /// Main cycle. Check readiness every service, send request, apply the resulting localization if success
         /// </summary>
         /// <returns>The routine.</returns>
-        public IEnumerator LocalisationRoutine()
+        private IEnumerator LocalisationRoutine()
         {
+#if !UNITY_EDITOR
+            bool isARInitialized = false;
+            yield return localisationService.StartCoroutine(ARAvailabilityChecking.StartChecking((status) => isARInitialized = status));
+
+            if (!isARInitialized)
+            {
+                ErrorInfo error = new ErrorInfo(ErrorCode.AR_NOT_SUPPORTED, "AR is not supported on current device");
+                OnErrorHappend?.Invoke(error);
+                VPSLogger.Log(LogLevel.ERROR, error.LogDescription());
+                yield break;
+            }
+#endif
+
             attemptCount = 0;
             MetricsCollector.Instance.StartStopwatch(FullLocalizationStopWatch);
 
@@ -159,6 +184,9 @@ namespace naviar.VPSService
 
             while (true)
             {
+                while (isPaused)
+                    yield return null;
+
                 while (!camera.IsCameraReady())
                     yield return null;
 
@@ -166,7 +194,7 @@ namespace naviar.VPSService
 
                 do
                 {
-                    if (isCorrectAngle != CheckTakePhotoConditions(tracking.GetLocalTracking().Rotation.eulerAngles))
+                    if (isCorrectAngle != CheckTakePhotoConditions(tracking.GetLocalTracking().Rotation.eulerAngles, settings))
                     {
                         isCorrectAngle = !isCorrectAngle;
                         OnCorrectAngle?.Invoke(isCorrectAngle);
@@ -294,14 +322,17 @@ namespace naviar.VPSService
 
         private void ReceiveResponce(ITracking tracking, ARFoundationApplyer arRFoundationApplyer)
         {
+            if (isPaused)
+                return;
+
             attemptCount++;
 
             locationState = requestVPS.GetLocationState(); 
 
             if (locationState.Status == LocalisationStatus.VPS_READY)
             {
-                #region Metrics
-                if (!tracking.GetLocalTracking().IsLocalisedLocation)
+#region Metrics
+                if (!tracking.IsLocalized())
                 {
                     MetricsCollector.Instance.StopStopwatch(FullLocalizationStopWatch);
 
@@ -309,16 +340,16 @@ namespace naviar.VPSService
                     VPSLogger.LogFormat(LogLevel.VERBOSE, "[Metric] SerialAttemptCount {0}", attemptCount);
                 }
 
-                #endregion
+#endregion
 
-                isLocalization = false;
-                currentFailsCount = 0;
-
-                bool changeLocationId = tracking.Localize(locationState.Localisation.LocalitonId);
+                bool changeLocationId = tracking.Localize(locationState.Localisation.LocationId);
                 if (changeLocationId)
                     provider.ResetSessionId();
 
-                locationState.Localisation = arRFoundationApplyer?.ApplyVPSTransform(locationState.Localisation);
+                locationState.Localisation = arRFoundationApplyer?.ApplyVPSTransform(locationState.Localisation, isLocalization);
+
+                isLocalization = false;
+                currentFailsCount = 0;
 
                 OnLocalisationHappend?.Invoke(locationState);
                 VPSLogger.Log(LogLevel.NONE, "VPS localization successful");
@@ -328,12 +359,6 @@ namespace naviar.VPSService
                 OnErrorHappend?.Invoke(locationState.Error);
                 VPSLogger.LogFormat(LogLevel.NONE, "VPS Request Failed: {0}", locationState.Error.LogDescription());
             }
-        }
-
-        private bool CheckTakePhotoConditions(Vector3 curAngle)
-        {
-            return (curAngle.x < MaxAngleX || curAngle.x > 360 - MaxAngleX) &&
-            (curAngle.z < MaxAngleZ || curAngle.z > 360 - MaxAngleZ);
         }
 
         private void ResetIfFails(int countToReset)
@@ -348,6 +373,12 @@ namespace naviar.VPSService
                 provider.ResetSessionId();
                 isLocalization = true;
             }
+        }
+
+        public bool CheckTakePhotoConditions(Vector3 curAngle, SettingsVPS settings)
+        {
+            return (curAngle.x < settings.MaxAngleX || curAngle.x > 360 - settings.MaxAngleX) &&
+            (curAngle.z < settings.MaxAngleZ || curAngle.z > 360 - settings.MaxAngleZ);
         }
     }
 }

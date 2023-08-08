@@ -21,5 +21,10 @@ namespace naviar.VPSService
         /// Reset current tracking
         /// </summary>
         void ResetTracking();
+        /// <summary>
+        /// Have been successful localizations 
+        /// </summary>
+        /// <returns></returns>
+        bool IsLocalized();
     }
 }

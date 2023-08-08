@@ -30,7 +30,7 @@ namespace naviar.VPSService.JSONs
                 GPSData gpsData = gps.GetGPSData();
                 CompassData gpsCompass = gps.GetCompassData();
 
-                if (gpsData.Accuracy < 1000)
+                if (gpsData.status == GPSStatus.Running && gpsCompass.status == GPSStatus.Running && gpsData.Accuracy < 1000)
                 {
                     RequstGps requstGps = new RequstGps
                     {
@@ -67,7 +67,7 @@ namespace naviar.VPSService.JSONs
             var attrib = new RequestAttributes
             {
                 locationIds = locationIds,
-                sessionId = Provider.GetSessionId(),
+                sessionId = Provider.GetSessionInfo().Id,
                 userId = PlayerPrefs.GetString(userIdKey),
                 timestamp = new DateTimeOffset(DateTime.Now).ToUniversalTime().ToUnixTimeMilliseconds() / 1000d,
 
@@ -154,7 +154,7 @@ namespace naviar.VPSService.JSONs
                                 TrackingRotation = new Vector3(communicationStruct.data.attributes.trackingPose.rx,
                                             communicationStruct.data.attributes.trackingPose.ry,
                                             communicationStruct.data.attributes.trackingPose.rz),
-                                LocalitonId = communicationStruct.data.attributes.locationId
+                                LocationId = communicationStruct.data.attributes.locationId
                             };
                         }
                         else

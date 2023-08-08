@@ -4,9 +4,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Unity.Collections;
+using Unity.XR.CoreUtils;
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.XR.ARFoundation;
 
 namespace naviar.VPSService
 {
@@ -35,16 +35,15 @@ namespace naviar.VPSService
         private Image mockImage;
         private float resizeCoef = 1.0f;
 
-        private TrackingData trackingData;
+        private TrackingData trackingData = new TrackingData();
 
-        private GameObject ARCamera;
+        private Transform ARCamera;
 
         private const float fakeFocalPixelLength = 1444.24768066f;
 
         private void Start()
         {
-            trackingData = new TrackingData();
-            ARCamera = FindObjectOfType<ARSessionOrigin>().camera.gameObject;
+            ARCamera = FindObjectOfType<XROrigin>().Camera.transform;
             StartCoroutine(UpdateFrame());
         }
 
@@ -256,35 +255,24 @@ namespace naviar.VPSService
             }
             else
             {
-                trackingData.Position = ARCamera.transform.localPosition;
-                trackingData.Rotation = ARCamera.transform.localRotation;
+                trackingData.Position = ARCamera.localPosition;
+                trackingData.Rotation = ARCamera.localRotation;
             }
         }
 
         public bool Localize(string locationId)
         {
-            if (trackingData != null)
-            {
-                trackingData.IsLocalisedLocation = true;
-                trackingData.LocationId = locationId;
-                return false;
-            }
-
             if (trackingData.LocationId != locationId)
             {
                 trackingData.LocationId = locationId;
                 return true;
             }
-
             return false;
         }
 
         public void ResetTracking()
         {
-            if (trackingData != null)
-            {
-                trackingData.IsLocalisedLocation = false;
-            }
+            trackingData = new TrackingData();
         }
 
         private IEnumerator UpdateFrame()
@@ -294,6 +282,11 @@ namespace naviar.VPSService
                 yield return new WaitForSeconds(updateTimeout);
                 IncPhotoCounter();
             }
+        }
+
+        public bool IsLocalized()
+        {
+            return !string.IsNullOrEmpty(trackingData.LocationId);
         }
     }
 }

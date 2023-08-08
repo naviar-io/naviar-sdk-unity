@@ -12,6 +12,11 @@ namespace naviar.VPSService
     {
         public float Latitude = 54.875f;
         public float Longitude = 48.6543f;
+        public float Altitude = 72.4563f;
+        public float GpsAccuracy = 0.5f;
+
+        public float Heading = 55.33f;
+        public float CompassAccuracy  = 0.4f;
 
         private new bool enabled = true;
 
@@ -29,8 +34,8 @@ namespace naviar.VPSService
             gpsData.status = GPSStatus.Running;
             gpsData.Latitude = Latitude;
             gpsData.Longitude = Longitude;
-            gpsData.Altitude = 72.4563;
-            gpsData.Accuracy = 0.5f;
+            gpsData.Altitude = Altitude;
+            gpsData.Accuracy = GpsAccuracy;
             gpsData.Timestamp = DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1)).TotalSeconds;
 
             return gpsData;
@@ -48,8 +53,8 @@ namespace naviar.VPSService
             }
 
             compassData.status = GPSStatus.Running;
-            compassData.Heading = 55.33f;
-            compassData.Accuracy = 0.4f;
+            compassData.Heading = Heading;
+            compassData.Accuracy = CompassAccuracy;
             compassData.Timestamp = DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1)).TotalSeconds;
 
             return compassData;

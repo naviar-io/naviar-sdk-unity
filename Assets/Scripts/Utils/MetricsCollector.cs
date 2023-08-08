@@ -37,7 +37,14 @@ namespace naviar.VPSService
 
         public TimeSpan GetStopwatchTimespan(string key)
         {
-            return stopwatches[key].Elapsed;
+            try
+            {
+                return stopwatches[key].Elapsed;
+            }
+            catch
+            {
+                return TimeSpan.Zero;
+            }
         }
 
         public void StopStopwatch(string key)
@@ -54,8 +61,15 @@ namespace naviar.VPSService
 
         public string GetStopwatchSecondsAsString(string key)
         {
-            TimeSpan timeSpan = stopwatches[key].Elapsed;
-            return string.Format("{0:N10}", timeSpan.TotalSeconds);
+            try
+            {
+                TimeSpan timeSpan = stopwatches[key].Elapsed;
+                return string.Format("{0:N10}", timeSpan.TotalSeconds);
+            }
+            catch
+            {
+                return string.Format("Get key {0} error", key);
+            }
         }
     }
 }

@@ -15,6 +15,9 @@ namespace naviar.VPSService
         // Fails count to reset session VPS
         public int failsCountToResetSession;
 
+        public float MaxAngleX = 30;
+        public float MaxAngleZ = 30;
+
         public SettingsVPS(string[] locationIds, int failsCountToResetSession)
         {
             this.locationIds = locationIds;

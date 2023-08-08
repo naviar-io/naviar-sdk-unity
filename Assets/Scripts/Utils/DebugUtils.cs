@@ -50,7 +50,7 @@ namespace naviar.VPSService
         public static void SaveDebugImage(Texture2D image, string suffix = null)
         {
             var img = image.EncodeToJPG(JpgCompress);
-            var imgPath = SaveDebugBytes(img, DateTime.Now.ToString(), "jpg", suffix);
+            var imgPath = SaveDebugBytes(img, DateTime.Now.ToString("dd.MM.yyyy_hh.mm.ss.fff"), "jpg", suffix);
             VPSLogger.Log(LogLevel.DEBUG, $"Saved camera image: {imgPath}");
         }
 
@@ -63,7 +63,7 @@ namespace naviar.VPSService
             var json = DataCollector.Serialize(metaMsg);
             var encodedJson = Encoding.Unicode.GetBytes(json);
 
-            var jsonPath = SaveDebugBytes(encodedJson, "json", suffix);
+            var jsonPath = SaveDebugBytes(encodedJson, DateTime.Now.ToString("dd.MM.yyyy_hh.mm.ss.fff"), "json", suffix);
             VPSLogger.Log(LogLevel.DEBUG, $"Saved json request: {jsonPath}");
         }
 
@@ -73,7 +73,7 @@ namespace naviar.VPSService
         /// </summary>
         public static void SaveDebugEmbd(byte[] embd, string suffix = null)
         {
-            var embdPath = SaveDebugBytes(embd, DateTime.Now.ToString(), "embd", suffix);
+            var embdPath = SaveDebugBytes(embd, DateTime.Now.ToString("dd.MM.yyyy_hh.mm.ss.fff"), "embd", suffix);
             VPSLogger.Log(LogLevel.DEBUG, $"Saved .embd file: {embdPath}");
         }
 

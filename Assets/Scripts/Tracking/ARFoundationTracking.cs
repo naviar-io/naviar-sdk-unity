@@ -1,23 +1,22 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using Unity.XR.CoreUtils;
 using UnityEngine;
-using UnityEngine.XR.ARFoundation;
 
 namespace naviar.VPSService
 {
     public class ARFoundationTracking : MonoBehaviour, ITracking
     {
-        private GameObject ARCamera;
-        private TrackingData trackingData;
+        private Transform ARCamera;
+        private TrackingData trackingData = new TrackingData();
 
         private void Awake()
         {
-            ARCamera = FindObjectOfType<ARSessionOrigin>().camera.gameObject;
+            ARCamera = FindObjectOfType<XROrigin>().Camera.transform;
             if (ARCamera == null)
             {
                 VPSLogger.Log(LogLevel.ERROR, "Camera is not available for tracking");
             }
-            trackingData = new TrackingData();
         }
 
         /// <summary>
@@ -27,8 +26,8 @@ namespace naviar.VPSService
         {
             if (ARCamera != null)
             {
-                trackingData.Position = ARCamera.transform.localPosition;
-                trackingData.Rotation = ARCamera.transform.localRotation;
+                trackingData.Position = ARCamera.localPosition;
+                trackingData.Rotation = ARCamera.localRotation;
             }
         }
 
@@ -40,27 +39,22 @@ namespace naviar.VPSService
 
         public bool Localize(string locationId)
         {
-            if (trackingData != null)
-            {
-                trackingData.IsLocalisedLocation = true;
-                trackingData.LocationId = locationId;
-                return false;
-            }
             if (trackingData.LocationId != locationId)
             {
                 trackingData.LocationId = locationId;
                 return true;
             }
-
             return false;
         }
 
         public void ResetTracking()
         {
-            if (trackingData != null)
-            {
-                trackingData.IsLocalisedLocation = false;
-            }
+            trackingData = new TrackingData();
+        }
+
+        public bool IsLocalized()
+        {
+            return !string.IsNullOrEmpty(trackingData.LocationId);
         }
     }
 }

@@ -64,10 +64,18 @@ namespace naviar.VPSService
                 threads = 2
             };
 
-            imageFeatureExtractorInterpreter = new Interpreter(FileUtil.LoadFile(Path.Combine(Application.streamingAssetsPath, ImageFeatureExtractorFileName)), imageFeatureExtractorOptions);
+            string featureExtractorPath = Path.Combine(Application.streamingAssetsPath, ImageFeatureExtractorFileName);
+            string imageEncoderPath = Path.Combine(Application.streamingAssetsPath, ImageEncoderFileName);
+
+            if (!FileUtil.FileExists(featureExtractorPath))
+                featureExtractorPath = Path.Combine(Application.persistentDataPath, ImageFeatureExtractorFileName);
+            if (!FileUtil.FileExists(imageEncoderPath))
+                imageEncoderPath = Path.Combine(Application.persistentDataPath, ImageEncoderFileName);
+
+            imageFeatureExtractorInterpreter = new Interpreter(FileUtil.LoadFile(featureExtractorPath), imageFeatureExtractorOptions);
             imageFeatureExtractorInterpreter.AllocateTensors();
 
-            imageEncoderInterpreter = new Interpreter(FileUtil.LoadFile(Path.Combine(Application.streamingAssetsPath, ImageEncoderFileName)), imageEncoderOptions);
+            imageEncoderInterpreter = new Interpreter(FileUtil.LoadFile(imageEncoderPath), imageEncoderOptions);
             imageEncoderInterpreter.AllocateTensors();
 
             // ImageFeatureExtractor inputs

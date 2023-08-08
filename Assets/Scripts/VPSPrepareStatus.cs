@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using TensorFlowLite;
 using UnityEngine;
 using UnityEngine.Networking;
 
@@ -13,22 +14,22 @@ namespace naviar.VPSService
 
         public string Name;
         public string Url;
-        public string DataPath;
+        public string PersistentDataPath;
+        public string StreamingAssetsDataPath;
         public float Progress;
 
-        public DownloadNeuronStatus(string name, bool downloadFromCloud)
+        public DownloadNeuronStatus(string name)
         {
             Name = name;
             Url = Path.Combine(bucketPath, name).Replace("\\", "/");
-            DataPath = downloadFromCloud ? Path.Combine(Application.persistentDataPath, name) : Path.Combine(Application.streamingAssetsPath, name);
+            PersistentDataPath = Path.Combine(Application.persistentDataPath, name);
+            StreamingAssetsDataPath = Path.Combine(Application.streamingAssetsPath, name);
             Progress = 0f;
         }
     }
 
     public class VPSPrepareStatus
     {
-        private bool downloadFromCloud = false;
-
         private DownloadNeuronStatus imageEncoder;
         private DownloadNeuronStatus imageFeatureExtractor;
 
@@ -42,8 +43,8 @@ namespace naviar.VPSService
 
         public VPSPrepareStatus()
         {
-            imageEncoder = new DownloadNeuronStatus(MobileVPS.ImageEncoderFileName, downloadFromCloud);
-            imageFeatureExtractor = new DownloadNeuronStatus(MobileVPS.ImageFeatureExtractorFileName, downloadFromCloud);
+            imageEncoder = new DownloadNeuronStatus(MobileVPS.ImageEncoderFileName);
+            imageFeatureExtractor = new DownloadNeuronStatus(MobileVPS.ImageFeatureExtractorFileName);
 
             // if mobileVPS already ready
             if (IsReady())
@@ -58,8 +59,7 @@ namespace naviar.VPSService
         /// </summary>
         public IEnumerator DownloadNeurals()
         {
-            CheckDirectory(Directory.GetParent(imageEncoder.DataPath).FullName);
-            while (!File.Exists(imageEncoder.DataPath) || !File.Exists(imageFeatureExtractor.DataPath))
+            while (!IsReady())
             {
                 if (Application.internetReachability == NetworkReachability.NotReachable)
                 {
@@ -81,7 +81,7 @@ namespace naviar.VPSService
         /// </summary>
         private IEnumerator DownloadNeural(DownloadNeuronStatus neuron)
         {
-            if (File.Exists(neuron.DataPath))
+            if (FileUtil.FileExists(neuron.StreamingAssetsDataPath) || FileUtil.FileExists(neuron.PersistentDataPath))
             {
                 neuron.Progress = 1;
                 yield break;
@@ -116,7 +116,10 @@ namespace naviar.VPSService
                     }
 
                     neuron.Progress = www.downloadProgress;
-                    File.WriteAllBytes(neuron.DataPath, www.downloadHandler.data);
+                    if (Application.isEditor)
+                        File.WriteAllBytes(neuron.StreamingAssetsDataPath, www.downloadHandler.data);
+                    else
+                        File.WriteAllBytes(neuron.PersistentDataPath, www.downloadHandler.data);
                     VPSLogger.Log(LogLevel.DEBUG, "Mobile vps network downloaded successfully!");
                     OnVPSReady?.Invoke();
 
@@ -142,13 +145,8 @@ namespace naviar.VPSService
         /// </summary>
         private bool IsReady()
         {
-            return !downloadFromCloud || File.Exists(imageEncoder.DataPath) && File.Exists(imageFeatureExtractor.DataPath);
-        }
-
-        private void CheckDirectory(string path)
-        {
-            if (!Directory.Exists(path))
-                Directory.CreateDirectory(path);
+            return (FileUtil.FileExists(imageEncoder.StreamingAssetsDataPath) || FileUtil.FileExists(imageEncoder.PersistentDataPath)) &&
+                 (FileUtil.FileExists(imageFeatureExtractor.StreamingAssetsDataPath) || FileUtil.FileExists(imageFeatureExtractor.PersistentDataPath));
         }
     }
 }

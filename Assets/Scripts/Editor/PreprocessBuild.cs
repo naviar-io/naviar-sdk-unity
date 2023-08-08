@@ -14,11 +14,10 @@ public class PreprocessBuild : IPreprocessBuildWithReport
     {
         PlayerSettings.allowUnsafeCode = true;
 #if UNITY_IOS
-        PlayerSettings.SetArchitecture(BuildTargetGroup.iOS, 1);
-        //PlayerSettings.SetManagedStrippingLevel(BuildTargetGroup.iOS, ManagedStrippingLevel.Medium);
+        PlayerSettings.SetArchitecture(NamedBuildTarget.iOS, 1);
 #elif UNITY_ANDROID
-        PlayerSettings.SetScriptingBackend(BuildTargetGroup.Android, ScriptingImplementation.IL2CPP);
-        PlayerSettings.SetArchitecture(BuildTargetGroup.Android, 2);
+        PlayerSettings.SetScriptingBackend(NamedBuildTarget.Android, ScriptingImplementation.IL2CPP);
+        PlayerSettings.SetArchitecture(NamedBuildTarget.Android, 2);
 #endif
     }
 }

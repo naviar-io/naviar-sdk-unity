@@ -18,7 +18,7 @@ namespace naviar.VPSService
         public float Heading;
         public float Accuracy;
         public double Timestamp;
-        public string LocalitonId;
+        public string LocationId;
 
         public LocalisationResult()
         {

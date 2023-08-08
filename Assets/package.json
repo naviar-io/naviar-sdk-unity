@@ -7,9 +7,9 @@
     "license": "MIT License",
     "licensesUrl": "https://github.com/naviar-io/naviar-sdk-unity/blob/main/LICENSE",
     "dependencies": {
-        "com.unity.xr.arfoundation": "4.0.2",
-        "com.unity.xr.arcore": "4.0.3",
-        "com.unity.xr.arkit": "4.0.2",
+        "com.unity.xr.arfoundation": "5.0.2",
+        "com.unity.xr.arcore": "5.0.2",
+        "com.unity.xr.arkit": "5.0.2",
     	"com.unity.nuget.newtonsoft-json": "2.0.2"
     }
 }

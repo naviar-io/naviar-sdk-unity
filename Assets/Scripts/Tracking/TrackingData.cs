@@ -8,7 +8,6 @@ namespace naviar.VPSService
     {
         public Vector3 Position;
         public Quaternion Rotation;
-        public bool IsLocalisedLocation;
         public string LocationId;
     }
 }

@@ -8,8 +8,7 @@ namespace naviar.VPSService
 
     public class GPSData
     {
-        public GPSStatus status = GPSStatus.Initializing;
-
+        public GPSStatus status;
         public double Latitude;
         public double Longitude;
         public double Altitude;
@@ -18,7 +17,7 @@ namespace naviar.VPSService
 
         public GPSData()
         {
-            status = GPSStatus.Running;
+            status = GPSStatus.Initializing;
             Latitude = 0.0;
             Longitude = 0.0;
             Altitude = 0.0;
@@ -29,15 +28,14 @@ namespace naviar.VPSService
 
     public class CompassData
     {
-        public GPSStatus status = GPSStatus.Initializing;
-
+        public GPSStatus status;
         public float Accuracy;
         public float Heading;
         public double Timestamp;
 
         public CompassData()
         {
-            status = GPSStatus.Running;
+            status = GPSStatus.Initializing;
             Heading = 0.0f;
             Accuracy = 0.0f;
             Timestamp = 0.0;

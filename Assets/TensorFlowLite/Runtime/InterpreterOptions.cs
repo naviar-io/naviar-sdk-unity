@@ -16,11 +16,8 @@ limitations under the License.
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
-
-using TfLiteInterpreter = System.IntPtr;
-using TfLiteInterpreterOptions = System.IntPtr;
-using TfLiteTensor = System.IntPtr;
 using TfLiteDelegate = System.IntPtr;
+using TfLiteInterpreterOptions = System.IntPtr;
 
 namespace TensorFlowLite
 {
@@ -32,7 +29,7 @@ namespace TensorFlowLite
 
         internal TfLiteInterpreterOptions nativePtr;
 
-        private List<IGpuDelegate> delegates;
+        private List<IDelegate> delegates;
 
         private int _threads;
         public int threads
@@ -46,6 +43,7 @@ namespace TensorFlowLite
         }
 
         private bool _useNNAPI;
+        [Obsolete("useNNAPI option is deprecated, use NNAPIDelegate instead.")]
         public bool useNNAPI
         {
             get => _useNNAPI;
@@ -53,7 +51,8 @@ namespace TensorFlowLite
             {
                 _useNNAPI = value;
 #if UNITY_ANDROID && !UNITY_EDITOR
-                InterpreterExtension.TfLiteInterpreterOptionsSetUseNNAPI(nativePtr, value);
+                // Create NNAPI delegate with default options
+                AddDelegate(new NNAPIDelegate());
 #endif // UNITY_ANDROID && !UNITY_EDITOR
             }
         }
@@ -61,9 +60,9 @@ namespace TensorFlowLite
         public InterpreterOptions()
         {
             nativePtr = TfLiteInterpreterOptionsCreate();
-            delegates = new List<IGpuDelegate>();
+            delegates = new List<IDelegate>();
 
-            TfLiteInterpreterOptionsSetErrorReporter(nativePtr, OnErrorReporter, IntPtr.Zero);
+            ErrorReporter.ConfigureReporter(nativePtr);
         }
 
         public void Dispose()
@@ -71,6 +70,7 @@ namespace TensorFlowLite
             if (nativePtr != IntPtr.Zero)
             {
                 TfLiteInterpreterOptionsDelete(nativePtr);
+                nativePtr = IntPtr.Zero;
             }
             foreach (var gpuDelegate in delegates)
             {
@@ -79,47 +79,29 @@ namespace TensorFlowLite
             delegates.Clear();
         }
 
-        public void AddGpuDelegate()
+        public void AddDelegate(IDelegate iDelegate)
         {
-            var gpuDelegate = CreateGpuDelegate();
-            if (gpuDelegate == null) return;
-            TfLiteInterpreterOptionsAddDelegate(nativePtr, gpuDelegate.Delegate);
-            delegates.Add(gpuDelegate);
+            if (iDelegate == null) return;
+            TfLiteInterpreterOptionsAddDelegate(nativePtr, iDelegate.Delegate);
+            delegates.Add(iDelegate);
         }
 
-        [AOT.MonoPInvokeCallback(typeof(ErrorReporterDelegate))]
-        private static void OnErrorReporter(System.IntPtr userData, string format, IntPtr args)
+        public void AddGpuDelegate()
         {
-            // Marshalling va_list as args.
-            // refs:
-            // https://github.com/dotnet/runtime/issues/9316
-            // https://github.com/jeremyVignelles/va-list-interop-demo
-
-            string report;
-#if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
-            // TODO: use vsprintf on windows
-            report = format;
-#else
-            int formatLength = printf(format, args);
-            IntPtr buffer = Marshal.AllocHGlobal(formatLength);
-            sprintf(buffer, format, args);
-            report = Marshal.PtrToStringAnsi(buffer);
-            Marshal.FreeHGlobal(buffer);
-#endif
-            UnityEngine.Debug.LogWarning($"Interperter Warning: {report}");
+            AddDelegate(CreateGpuDelegate());
         }
 
 #pragma warning disable CS0162 // Unreachable code detected 
-        private static IGpuDelegate CreateGpuDelegate()
+        private static IDelegate CreateGpuDelegate()
         {
-#if UNITY_ANDROID && !UNITY_EDITOR
-            return new GlDelegate();
+#if (UNITY_ANDROID && !UNITY_EDITOR) || (UNITY_EDITOR_LINUX || UNITY_STANDALONE_LINUX)
+            return new GpuDelegateV2();
 #elif UNITY_IOS || UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX
             return new MetalDelegate(new MetalDelegate.Options()
             {
-                allowPrecisionLoss = true,
+                allowPrecisionLoss = false,
                 waitType = MetalDelegate.WaitType.Passive,
-                enableQuantization = false,
+                enableQuantization = true,
             });
 #endif
             UnityEngine.Debug.LogWarning("GPU Delegate is not supported on this platform");
@@ -129,13 +111,7 @@ namespace TensorFlowLite
 
 
         #region Externs
-
-#if UNITY_IOS && !UNITY_EDITOR
-        private const string TensorFlowLibrary = "__Internal";
-#else
-        private const string TensorFlowLibrary = "libtensorflowlite_c";
-#endif
-
+        private const string TensorFlowLibrary = Interpreter.TensorFlowLibrary;
 
         [DllImport(TensorFlowLibrary)]
         private static extern unsafe TfLiteInterpreterOptions TfLiteInterpreterOptionsCreate();
@@ -153,28 +129,6 @@ namespace TensorFlowLite
         private static extern unsafe void TfLiteInterpreterOptionsAddDelegate(
             TfLiteInterpreterOptions options,
             TfLiteDelegate _delegate);
-
-        [DllImport(TensorFlowLibrary, CallingConvention = CallingConvention.Cdecl)]
-        private static extern void TfLiteInterpreterOptionsSetErrorReporter(
-            TfLiteInterpreterOptions options,
-            ErrorReporterDelegate errorReporter,
-            IntPtr user_data);
-
-
-#if !UNITY_EDITOR_WIN && !UNITY_STANDALONE_WIN
-        private const string LibCLibrary = "libc";
-
-        [DllImport(LibCLibrary, CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
-        extern static int printf(
-            [In][MarshalAs(UnmanagedType.LPStr)] string format,
-            IntPtr args);
-
-        [DllImport(LibCLibrary, CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
-        extern static int sprintf(
-            IntPtr buffer,
-            [In][MarshalAs(UnmanagedType.LPStr)] string format,
-            IntPtr args);
-#endif // !UNITY_EDITOR_WIN && !UNITY_STANDALONE_WIN
 
         #endregion // Externs
     }

@@ -133,15 +133,28 @@ namespace naviar.VPSService
             Root.gameObject.SetActive(false);
         }
 
-        private void ApplyOccluder(bool enable)
+        private void ApplyOccluder(bool visible)
         {
+            if (OccluderModel == null)
+                return;
+
             Renderer[] renderers = OccluderModel.GetComponentsInChildren<Renderer>();
-            foreach(Renderer renderer in renderers)
+
+            if (visible)
             {
-                if (enable)
-                    renderer.material = VisibleMaterial;
-                else
-                    renderer.material = OccluderMaterial;
+                if (VisibleMaterial != null)
+                {
+                    foreach (Renderer renderer in renderers)
+                        renderer.material = VisibleMaterial;
+                }
+            }
+            else
+            {
+                if (OccluderMaterial != null)
+                {
+                    foreach (Renderer renderer in renderers)
+                        renderer.material = OccluderMaterial;
+                }
             }
         }
     }

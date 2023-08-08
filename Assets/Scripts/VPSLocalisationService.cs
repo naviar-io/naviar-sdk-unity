@@ -1,5 +1,7 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.ComponentModel;
 using UnityEngine;
 
 namespace naviar.VPSService
@@ -15,8 +17,6 @@ namespace naviar.VPSService
 
         [Tooltip("Start VPS in OnAwake")]
         public bool StartOnAwake;
-        [SerializeField]
-        private KeyCode toggleFreeFlightMode;
 
         [Header("Providers")]
         [Tooltip("Which camera, GPS and tracking use for runtime")]
@@ -25,10 +25,15 @@ namespace naviar.VPSService
         public ServiceProvider MockProvider;
         private ServiceProvider provider;
 
+        private SettingsVPS currentSettings;
+
         [Tooltip("Use mock provider when VPS service has started")]
         public bool UseMock = false;
         [Tooltip("Always use mock provider in Editor, even if UseMock is false")]
         public bool ForceMockInEditor = true;
+
+        [SerializeField]
+        private KeyCode toggleFreeFlightMode = KeyCode.Tab;
 
         [Header("Default VPS Settings")]
         [Tooltip("Send features or photo")]
@@ -45,9 +50,11 @@ namespace naviar.VPSService
         [Tooltip("Save images in request localy before sending them to server")]
         [SerializeField]
         private bool saveImagesLocaly;
+        [SerializeField]
+        private bool saveLogsInFile;
 
         private VPSPrepareStatus vpsPreparing;
-        private FreeFlightSimulation freeFlightSimulation;
+        private FreeFlightSimulationAlgorithm freeFlightSimulationAlgorithm;
 
         /// <summary>
         /// Event localisation error
@@ -69,16 +76,13 @@ namespace naviar.VPSService
         /// </summary>
         public event System.Action<bool> OnCorrectAngle;
 
-        private VPSLocalisationAlgorithm algorithm;
+        private bool isDefaultAlgorithm = true;
+        private ILocalisationAlgorithm algorithm;
 
         private IEnumerator Start()
         {
             if (!provider)
                 yield break;
-
-            freeFlightSimulation = FindObjectOfType<FreeFlightSimulation>();
-            if (freeFlightSimulation == null)
-                Debug.Log("FreeFlightSimulation is not found on scene");
 
             if (locationsIds == null || locationsIds.Length == 0)
             {
@@ -117,12 +121,6 @@ namespace naviar.VPSService
         /// </summary>
         public void StartVPS(SettingsVPS settings)
         {
-            if (freeFlightSimulation != null && freeFlightSimulation.IsActive())
-            {
-                StartCoroutine(LocalizeWithDelay(freeFlightSimulation.GetLocalizationDelay()));
-                return;
-            }
-
             StopVps();
             provider.InitGPS(SendGPS);
             provider.ResetSessionId();
@@ -136,11 +134,37 @@ namespace naviar.VPSService
                     return;
                 }
             }
-            algorithm = new VPSLocalisationAlgorithm(defaultUrl, this, provider, settings, LocalizationMode, SendGPS);
 
-            algorithm.OnErrorHappend += (e) => OnErrorHappend?.Invoke(e);
-            algorithm.OnLocalisationHappend += (ls) => OnPositionUpdated?.Invoke(ls);
-            algorithm.OnCorrectAngle += (correct) => OnCorrectAngle?.Invoke(correct);
+            currentSettings = settings;
+
+            SwitchLocalizationAlgorithm(isDefaultAlgorithm);
+
+            algorithm.Run();
+        }
+
+        private void ConfigureAlgorithmListeners(ILocalisationAlgorithm localisationAlgorithm)
+        {
+            localisationAlgorithm.OnErrorHappend += (e) => OnErrorHappend?.Invoke(e);
+            localisationAlgorithm.OnLocalisationHappend += (ls) => OnPositionUpdated?.Invoke(ls);
+            localisationAlgorithm.OnCorrectAngle += (correct) => OnCorrectAngle?.Invoke(correct);
+        }
+
+        private void SwitchLocalizationAlgorithm(bool isDefault)
+        {
+            isDefaultAlgorithm = isDefault;
+
+            StopAllCoroutines();
+            freeFlightSimulationAlgorithm.gameObject.SetActive(!isDefaultAlgorithm);
+            if (isDefaultAlgorithm)
+            {
+                algorithm = new VPSLocalisationAlgorithm(defaultUrl, this, provider, currentSettings, LocalizationMode, SendGPS);
+                ConfigureAlgorithmListeners(algorithm);
+            }
+            else
+            {
+                freeFlightSimulationAlgorithm.SetSettings(currentSettings);
+                algorithm = freeFlightSimulationAlgorithm;
+            }
         }
 
         /// <summary>
@@ -152,15 +176,26 @@ namespace naviar.VPSService
         }
 
         /// <summary>
+        /// Pause work VPS service without resetting the current session
+        /// </summary>
+        public void PauseVPS()
+        {
+            algorithm?.Pause();
+        }
+
+        /// <summary>
+        /// Resume work VPS service with current session
+        /// </summary>
+        public void ResumeVPS()
+        {
+            algorithm?.Resume();
+        }
+
+        /// <summary>
         /// Get latest localisation result
         /// </summary>
         public LocationState GetLatestPose()
         {
-            if (freeFlightSimulation != null && freeFlightSimulation.IsActive())
-            {
-                return GetLocationStateFromCurrentPose();
-            }
-
             if (algorithm == null)
             {
                 VPSLogger.Log(LogLevel.ERROR, "VPS service is not running. Use StartVPS before");
@@ -174,7 +209,7 @@ namespace naviar.VPSService
         /// </summary>
         public bool IsLocalized()
         {
-            return provider.GetTracking().GetLocalTracking().IsLocalisedLocation;
+            return provider.GetTracking().IsLocalized();
         }
 
         /// <summary>
@@ -206,65 +241,22 @@ namespace naviar.VPSService
             VPSLogger.Log(LogLevel.NONE, "Tracking reseted");
         }
 
-        /// <summary>
-        /// Switch on / off free flight mode 
-        /// </summary>
-        public void SetFreeFlightMode(bool isFreeFlight)
+        public SessionInfo GetCurrentSessionInfo()
         {
-            if (freeFlightSimulation == null)
-            {
-                Debug.Log("FreeFlightSimulation is not found on VPS");
-                return;
-            }
-
-            freeFlightSimulation.SetFreeFlightMode(isFreeFlight);
-            if (isFreeFlight)
-                StopVps();
-            else
-                ResetTracking();
-
-            FindObjectOfType<FakeCamera>()?.SetMockImageEnable(!isFreeFlight);
-        }
-
-        /// <summary>
-        /// Localize camera in mockPosition and mockRotation
-        /// </summary>
-        /// <param name="mockPosition"></param>
-        /// <param name="mockRotation"></param>
-        public void MockLocalize(Vector3 mockPosition, Quaternion mockRotation)
-        {
-            MockLocalize(mockPosition, mockRotation.eulerAngles);
-        }
-
-        /// <summary>
-        /// Localize camera in mockPosition and mockRotation
-        /// </summary>
-        /// <param name="mockPosition"></param>
-        /// <param name="mockRotation"></param>
-        public void MockLocalize(Vector3 mockPosition, Vector3 mockRotation)
-        {
-            LocalisationResult localisationResult = new LocalisationResult();
-            localisationResult.VpsPosition = mockPosition;
-            localisationResult.VpsRotation = mockRotation;
-            localisationResult.TrackingPosition = provider.GetTracking().GetLocalTracking().Position;
-            localisationResult.TrackingRotation = provider.GetTracking().GetLocalTracking().Rotation.eulerAngles;
-            localisationResult.LocalitonId = locationsIds[0];
-
-            LocationState locationState = new LocationState();
-            locationState.Status = LocalisationStatus.VPS_READY;
-            locationState.Localisation = localisationResult;
-
-            MockProvider.GetARFoundationApplyer().ApplyVPSTransform(localisationResult, true);
-            MockProvider.GetTracking().Localize(locationsIds[0]);
-
-            StopVps();
-
-            OnPositionUpdated?.Invoke(locationState);
+            return provider.GetSessionInfo();
         }
 
         private void Awake()
         {
             DebugUtils.SaveImagesLocaly = saveImagesLocaly;
+            VPSLogger.WriteLogsInFile = saveLogsInFile;
+
+            freeFlightSimulationAlgorithm = FindObjectOfType<FreeFlightSimulationAlgorithm>(true);
+            if (freeFlightSimulationAlgorithm == null)
+            {
+                Debug.Log("FreeFlightSimulationAlgorithm not found. FreeFlightMode is not available");
+            }
+            ConfigureAlgorithmListeners(freeFlightSimulationAlgorithm);
 
             // check what provider should VPS use
             var isMockMode = UseMock || Application.isEditor && ForceMockInEditor;
@@ -272,7 +264,7 @@ namespace naviar.VPSService
 
             if (!provider)
             {
-                VPSLogger.Log(LogLevel.ERROR, "Can't load proveder! Select provider for VPS service!");
+                VPSLogger.Log(LogLevel.ERROR, "Can't load provider! Select provider for VPS service!");
                 return;
             }
 
@@ -295,34 +287,11 @@ namespace naviar.VPSService
             provider.InitMobileVPS();
         }
 
-        private LocationState GetLocationStateFromCurrentPose()
-        {
-            LocationState locationState = new LocationState();
-            locationState.Status = LocalisationStatus.VPS_READY;
-
-            LocalisationResult localisationResult = new LocalisationResult();
-            localisationResult.LocalitonId = provider.GetTracking().GetLocalTracking().LocationId;
-            localisationResult.VpsPosition = provider.GetTracking().GetLocalTracking().Position;
-            localisationResult.VpsRotation = provider.GetTracking().GetLocalTracking().Rotation.eulerAngles;
-
-            locationState.Localisation = new LocalisationResult();
-
-            return locationState;
-        }
-
-        private IEnumerator LocalizeWithDelay(float delay)
-        {
-            yield return new WaitForSeconds(delay);
-            LocationState locationState = GetLocationStateFromCurrentPose();
-            provider.GetTracking().Localize(locationState.Localisation.LocalitonId);
-            OnPositionUpdated?.Invoke(locationState);
-        }
-
         private void Update()
         {
             if (Input.GetKeyDown(toggleFreeFlightMode))
             {
-                SetFreeFlightMode(!freeFlightSimulation.IsActive());
+                SwitchLocalizationAlgorithm(!isDefaultAlgorithm);
             }
         }
     }

@@ -1,13 +1,13 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using Unity.XR.CoreUtils;
 using UnityEngine;
-using UnityEngine.XR.ARFoundation;
 
 namespace naviar.VPSService
 {
     public class ARFoundationApplyer : MonoBehaviour
     {
-        private ARSessionOrigin arSessionOrigin;
+        private XROrigin xrOrigin;
 
         [Tooltip("Max distance for interpolation")]
         public float MaxInterpolationDistance = 5;
@@ -23,8 +23,8 @@ namespace naviar.VPSService
 
         private void Start()
         {
-            arSessionOrigin = FindObjectOfType<ARSessionOrigin>();
-            if (arSessionOrigin == null)
+            xrOrigin = FindObjectOfType<XROrigin>();
+            if (xrOrigin == null)
             {
                 VPSLogger.Log(LogLevel.ERROR, "ARSessionOrigin is not found");
             }
@@ -44,7 +44,7 @@ namespace naviar.VPSService
                 correctedResult.VpsPosition.y = 0;
 
             // calculate camera offset for the time of sending request
-            Vector3 cameraOffset = arSessionOrigin.camera.transform.localPosition - localisation.TrackingPosition;
+            Vector3 cameraOffset = xrOrigin.Camera.transform.localPosition - localisation.TrackingPosition;
 
             // subtract the sent position and rotation because the child has them
             correctedResult.VpsPosition -= correctedResult.TrackingPosition;
@@ -74,21 +74,21 @@ namespace naviar.VPSService
             }
 
             // save current anchor position and rotation
-            Vector3 startPosition = arSessionOrigin.transform.position;
-            Quaternion startRotation = arSessionOrigin.transform.rotation;
+            Vector3 startPosition = xrOrigin.transform.position;
+            Quaternion startRotation = xrOrigin.transform.rotation;
 
             // set new position
-            arSessionOrigin.transform.position = NewPosition;
+            xrOrigin.transform.position = NewPosition;
             // we need rotate only camera, so we reset parent rotation
-            arSessionOrigin.transform.rotation = Quaternion.identity;
+            xrOrigin.transform.rotation = Quaternion.identity;
             // calculate camera world position without offset
-            Vector3 cameraPosWithoutOffet = arSessionOrigin.camera.transform.position - cameraOffset;
+            Vector3 cameraPosWithoutOffet = xrOrigin.Camera.transform.position - cameraOffset;
             // and rotate parent around child on three axes
             RotateAroundThreeAxes(NewRotation, cameraPosWithoutOffet);
 
             // save anchor position and rotation
-            Vector3 targetPosition = arSessionOrigin.transform.position;
-            Quaternion targetRotation = arSessionOrigin.transform.rotation;
+            Vector3 targetPosition = xrOrigin.transform.position;
+            Quaternion targetRotation = xrOrigin.transform.rotation;
 
             // if the offset is greater than MaxInterpolationDistance - don't use interpolation (move instantly)
             if (Vector3.Distance(startPosition, targetPosition) > MaxInterpolationDistance || instantly)
@@ -99,8 +99,8 @@ namespace naviar.VPSService
             while (interpolant < 1)
             {
                 interpolant += LerpSpeed * Time.deltaTime;
-                arSessionOrigin.transform.position = Vector3.Lerp(startPosition, targetPosition, interpolant);
-                arSessionOrigin.transform.rotation = Quaternion.Lerp(startRotation, targetRotation, interpolant);
+                xrOrigin.transform.position = Vector3.Lerp(startPosition, targetPosition, interpolant);
+                xrOrigin.transform.rotation = Quaternion.Lerp(startRotation, targetRotation, interpolant);
                 yield return null;
             }
         }
@@ -108,20 +108,20 @@ namespace naviar.VPSService
         private void RotateAroundThreeAxes(Vector3 rotateVector, Vector3 cameraPosWithoutOffet)
         {
             // rotate anchor (parent) around camera (child)
-            arSessionOrigin.transform.RotateAround(cameraPosWithoutOffet, Vector3.forward, rotateVector.z);
-            arSessionOrigin.transform.RotateAround(cameraPosWithoutOffet, Vector3.right, rotateVector.x);
-            arSessionOrigin.transform.RotateAround(cameraPosWithoutOffet, Vector3.up, rotateVector.y);
+            xrOrigin.transform.RotateAround(cameraPosWithoutOffet, Vector3.forward, rotateVector.z);
+            xrOrigin.transform.RotateAround(cameraPosWithoutOffet, Vector3.right, rotateVector.x);
+            xrOrigin.transform.RotateAround(cameraPosWithoutOffet, Vector3.up, rotateVector.y);
         }
 
         public void ResetTracking()
         {
             StopAllCoroutines();
-            if (arSessionOrigin != null)
+            if (xrOrigin != null)
             {
-                arSessionOrigin.transform.position = Vector3.zero;
-                arSessionOrigin.transform.rotation = Quaternion.identity;
-                arSessionOrigin.camera.transform.position = Vector3.zero;
-                arSessionOrigin.camera.transform.rotation = Quaternion.identity;
+                xrOrigin.transform.position = Vector3.zero;
+                xrOrigin.transform.rotation = Quaternion.identity;
+                xrOrigin.Camera.transform.position = Vector3.zero;
+                xrOrigin.Camera.transform.rotation = Quaternion.identity;
             }
         }
     }

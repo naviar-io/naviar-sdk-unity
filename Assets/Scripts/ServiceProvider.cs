@@ -21,7 +21,7 @@ namespace naviar.VPSService
 
         private VPSTextureRequirement textureRequir;
 
-        private string sessionId;
+        private SessionInfo currentSession;
 
         public ICamera GetCamera()
         {
@@ -73,15 +73,15 @@ namespace naviar.VPSService
             return mobileVPS; 
         }
 
-        public string GetSessionId()
+        public SessionInfo GetSessionInfo()
         {
-            return sessionId;
+            return currentSession;
         }
 
         public void ResetSessionId()
         {
-            sessionId = System.Guid.NewGuid().ToString();
-            VPSLogger.Log(LogLevel.VERBOSE, $"New session: {sessionId}");
+            currentSession = new SessionInfo();
+            VPSLogger.Log(LogLevel.VERBOSE, $"New session: {currentSession.Id}");
         }
     }
 }

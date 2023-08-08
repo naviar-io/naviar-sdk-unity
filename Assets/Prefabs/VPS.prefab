@@ -1,95 +1,5 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &1158128571
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1158128573}
-  - component: {fileID: 1158128572}
-  m_Layer: 0
-  m_Name: FreeFlightSimulation
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1158128573
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1158128571}
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_Children:
-  - {fileID: 1348771055}
-  m_Father: {fileID: 8690752167743118258}
-  m_RootOrder: 3
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1158128572
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1158128571}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8f5e9106f773d49ec9d5beb9492eac46, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  VPS: {fileID: 8690752167743118269}
-  isFreeFlightPrefab: {fileID: 4620886773914695425, guid: 34bc170e1ae6e44f1a9ad2d098b41cfc,
-    type: 3}
-  simulateLocalizationButton: 101
-  localizationPose: {fileID: 1348771055}
-  localizationDelay: 3
-  speed: 5
-  accelerationRatio: 2
-  moveForwardButton: 119
-  moveLeftButton: 97
-  moveBackButton: 115
-  moveRightButton: 100
-  AccelerationButtton: 304
-  lockCursor: 1
-  sensitivity: 5
-  maxVerticalAngle: 45
---- !u!1 &1348771054
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1348771055}
-  m_Layer: 0
-  m_Name: LocalizationPose
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1348771055
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1348771054}
-  m_LocalRotation: {x: 0, y: -0.7071068, z: 0, w: 0.7071068}
-  m_LocalPosition: {x: 23, y: 7, z: -33}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_Children: []
-  m_Father: {fileID: 1158128573}
-  m_RootOrder: 0
-  m_LocalEulerAnglesHint: {x: 0, y: -90, z: 0}
 --- !u!1 &1902949979
 GameObject:
   m_ObjectHideFlags: 0
@@ -118,6 +28,7 @@ Transform:
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 8690752167743118258}
   m_RootOrder: 2
@@ -181,11 +92,12 @@ Transform:
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 8690752168016233487}
   - {fileID: 8690752169563304424}
   - {fileID: 1902949980}
-  - {fileID: 1158128573}
+  - {fileID: 4766206922274509795}
   m_Father: {fileID: 0}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -202,17 +114,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   StartOnAwake: 0
-  toggleFreeFlightMode: 9
   RuntimeProvider: {fileID: 8690752168016233484}
   MockProvider: {fileID: 8690752169563304428}
   UseMock: 0
   ForceMockInEditor: 1
+  toggleFreeFlightMode: 9
   LocalizationMode: 1
-  SendGPS: 1
+  SendGPS: 0
   FailsCountToReset: 5
   locationsIds:
   - polytech
   saveImagesLocaly: 0
+  saveLogsInFile: 0
 --- !u!114 &8690752167743118256
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -259,6 +172,7 @@ Transform:
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 8690752167743118258}
   m_RootOrder: 0
@@ -343,6 +257,7 @@ Transform:
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 8690752167743118258}
   m_RootOrder: 1
@@ -389,3 +304,87 @@ MonoBehaviour:
   LoadingType: 0
   FakeTexture: {fileID: 2800000, guid: 9ccc251cd489446c69484cae3a92b023, type: 3}
   ImageLocalPath: InternalTestPhotos/bootcamp.jpg
+--- !u!1001 &9063788546421648520
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 8690752167743118258}
+    m_Modifications:
+    - target: {fileID: 4606615451787165547, guid: df64d9f931eae964fbfadc43fad87756,
+        type: 3}
+      propertyPath: m_RootOrder
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 4606615451787165547, guid: df64d9f931eae964fbfadc43fad87756,
+        type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4606615451787165547, guid: df64d9f931eae964fbfadc43fad87756,
+        type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4606615451787165547, guid: df64d9f931eae964fbfadc43fad87756,
+        type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4606615451787165547, guid: df64d9f931eae964fbfadc43fad87756,
+        type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4606615451787165547, guid: df64d9f931eae964fbfadc43fad87756,
+        type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4606615451787165547, guid: df64d9f931eae964fbfadc43fad87756,
+        type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4606615451787165547, guid: df64d9f931eae964fbfadc43fad87756,
+        type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4606615451787165547, guid: df64d9f931eae964fbfadc43fad87756,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4606615451787165547, guid: df64d9f931eae964fbfadc43fad87756,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4606615451787165547, guid: df64d9f931eae964fbfadc43fad87756,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4606615451787165549, guid: df64d9f931eae964fbfadc43fad87756,
+        type: 3}
+      propertyPath: m_Name
+      value: FreeFlightSimulation
+      objectReference: {fileID: 0}
+    - target: {fileID: 4606615451787165549, guid: df64d9f931eae964fbfadc43fad87756,
+        type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: df64d9f931eae964fbfadc43fad87756, type: 3}
+--- !u!4 &4766206922274509795 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 4606615451787165547, guid: df64d9f931eae964fbfadc43fad87756,
+    type: 3}
+  m_PrefabInstance: {fileID: 9063788546421648520}
+  m_PrefabAsset: {fileID: 0}
